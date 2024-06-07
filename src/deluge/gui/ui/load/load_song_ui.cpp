@@ -302,7 +302,7 @@ ramError:
 
 someError:
 			display->displayError(error);
-			bdsm->closeFile();
+			f_close(&smDeserializer.readFIL);
 fail:
 			// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 			if (!currentSong) {
@@ -343,7 +343,7 @@ gotErrorAfterCreatingSong:
 		}
 		AudioEngine::logAction("d");
 
-		bool success = bdsm->closeFile();
+		bool success = bdsm->closeFile(smDeserializer.readFIL);
 
 		if (!success) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
@@ -810,7 +810,7 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 		}
 	}
 stopLoadingPreview:
-	bdsm.closeFile();
+	bdsm.closeFile(smDeserializer.readFIL);
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

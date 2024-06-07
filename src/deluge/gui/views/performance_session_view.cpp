@@ -1835,7 +1835,7 @@ void PerformanceSessionView::readDefaultsFromFile(StorageManager& bdsm) {
 		reader.exitTag();
 	}
 
-	bdsm.closeFile();
+	bdsm.closeFile(smDeserializer.readFIL);
 
 	successfullyReadDefaultsFromFile = true;
 }
