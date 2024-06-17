@@ -331,12 +331,12 @@ AutomationView::AutomationView() {
 	interpolation = true;
 	interpolationBefore = false;
 	interpolationAfter = false;
-	// used to prevent excessive blinking when you're scrolling with horizontal / vertical / mod encoders
-	encoderAction = false;
 	// used to set parameter shortcut blinking
 	parameterShortcutBlinking = false;
 	// used to set interpolation shortcut blinking
 	interpolationShortcutBlinking = false;
+	// used to set pad selection shortcut blinking
+	padSelectionShortcutBlinking = false;
 	// used to enter pad selection mode
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -483,6 +483,7 @@ void AutomationView::focusRegained() {
 		// blink timer got reset by view.focusRegained() above
 		parameterShortcutBlinking = false;
 		interpolationShortcutBlinking = false;
+		padSelectionShortcutBlinking = false;
 		// remove patch cable blink frequencies
 		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
@@ -599,49 +600,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	PadLEDs::renderingLock = false;
 
 	return true;
-}
-
-void AutomationView::blinkShortcuts() {
-	if (!encoderAction) {
-		if (getCurrentUI() == this) {
-			int32_t lastSelectedParamShortcutX = kNoSelection;
-			int32_t lastSelectedParamShortcutY = kNoSelection;
-			if (onArrangerView) {
-				lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
-				lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
-			}
-			else {
-				Clip* clip = getCurrentClip();
-				lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
-				lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
-			}
-			// if a Param has been selected for editing, blink its shortcut pad
-			if (lastSelectedParamShortcutX != kNoSelection) {
-				if (!parameterShortcutBlinking) {
-					soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
-					soundEditor.blinkShortcut();
-
-					parameterShortcutBlinking = true;
-				}
-			}
-			// unset previously set blink timers if not editing a parameter
-			else {
-				resetParameterShortcutBlinking();
-			}
-		}
-		if (interpolation) {
-			if (!interpolationShortcutBlinking) {
-				blinkInterpolationShortcut();
-			}
-		}
-		else {
-			resetInterpolationShortcutBlinking();
-		}
-	}
-	else {
-		// doing this so the shortcut doesn't blink like crazy while turning knobs that refresh UI
-		encoderAction = false;
-	}
 }
 
 // determines whether you should render the automation editor, automation overview or just render some love <3
@@ -2022,8 +1980,10 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				return toggleAutomationInterpolation();
 			}
 			// toggle pad selection on / off
-			else if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
-				return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
+			else if (!onAutomationOverview()) {
+				if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
+					return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
+				}
 			}
 
 			shortcutPress = true;
@@ -2050,19 +2010,18 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 
 /// toggle automation interpolation on / off
 bool AutomationView::toggleAutomationInterpolation() {
-	if (!interpolation) {
-
-		interpolation = true;
-		blinkInterpolationShortcut();
-
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
-	}
-	else {
+	if (interpolation) {
 		interpolation = false;
 		initInterpolation();
 		resetInterpolationShortcutBlinking();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
+	}
+	else {
+		interpolation = true;
+		blinkInterpolationShortcut();
+
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
 	}
 	return true;
 }
@@ -2071,33 +2030,32 @@ bool AutomationView::toggleAutomationInterpolation() {
 bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam,
                                                       int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	// enter/exit pad selection mode
-	if (inAutomationEditor()) {
-		if (padSelectionOn) {
+	if (padSelectionOn) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
-
-			initPadSelection();
-			if (!playbackHandler.isEitherClockActive()) {
-				displayAutomation(true, !display->have7SEG());
-			}
+		initPadSelection();
+		if (!playbackHandler.isEitherClockActive()) {
+			displayAutomation(true, !display->have7SEG());
 		}
-		else {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
-
-			padSelectionOn = true;
-			multiPadPressSelected = false;
-			multiPadPressActive = false;
-
-			// display only left cursor initially
-			leftPadSelectedX = 0;
-			rightPadSelectedX = kNoSelection;
-
-			uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
-
-			updateAutomationModPosition(modelStackWithParam, squareStart, !display->have7SEG());
-		}
-		uiNeedsRendering(this);
 	}
+	else {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
+
+		padSelectionOn = true;
+		blinkPadSelectionShortcut();
+
+		multiPadPressSelected = false;
+		multiPadPressActive = false;
+
+		// display only left cursor initially
+		leftPadSelectedX = 0;
+		rightPadSelectedX = kNoSelection;
+
+		uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
+
+		updateAutomationModPosition(modelStackWithParam, squareStart, !display->have7SEG());
+	}
+	uiNeedsRendering(this);
 	return true;
 }
 
@@ -2693,8 +2651,6 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	}
 
-	encoderAction = true;
-
 	if (inAutomationEditor()
 	    && ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
 	        || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
@@ -2805,7 +2761,6 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	OutputType outputType = clip->output->type;
-	encoderAction = true;
 
 	// If encoder button pressed
 	if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
@@ -3065,8 +3020,6 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
-
-	encoderAction = true;
 
 	// if user holding a node down, we'll adjust the value of the selected parameter being automated
 	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
@@ -3873,6 +3826,8 @@ void AutomationView::initPadSelection() {
 	leftPadSelectedX = kNoSelection;
 	rightPadSelectedX = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
+
+	resetPadSelectionShortcutBlinking();
 }
 
 void AutomationView::initInterpolation() {
@@ -4525,10 +4480,56 @@ void AutomationView::displayCVErrorMessage() {
 	}
 }
 
+void AutomationView::blinkShortcuts() {
+	if (getCurrentUI() == this) {
+		int32_t lastSelectedParamShortcutX = kNoSelection;
+		int32_t lastSelectedParamShortcutY = kNoSelection;
+		if (onArrangerView) {
+			lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
+			lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
+		}
+		else {
+			Clip* clip = getCurrentClip();
+			lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
+			lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
+		}
+		// if a Param has been selected for editing, blink its shortcut pad
+		if (lastSelectedParamShortcutX != kNoSelection) {
+			if (!parameterShortcutBlinking) {
+				soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
+				soundEditor.blinkShortcut();
+
+				parameterShortcutBlinking = true;
+			}
+		}
+		// unset previously set blink timers if not editing a parameter
+		else {
+			resetParameterShortcutBlinking();
+		}
+	}
+	if (interpolation) {
+		if (!interpolationShortcutBlinking) {
+			blinkInterpolationShortcut();
+		}
+	}
+	else {
+		resetInterpolationShortcutBlinking();
+	}
+	if (padSelectionOn) {
+		if (!padSelectionShortcutBlinking) {
+			blinkPadSelectionShortcut();
+		}
+	}
+	else {
+		resetPadSelectionShortcutBlinking();
+	}
+}
+
 void AutomationView::resetShortcutBlinking() {
 	memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 	resetParameterShortcutBlinking();
 	resetInterpolationShortcutBlinking();
+	resetPadSelectionShortcutBlinking();
 }
 
 // created this function to undo any existing parameter shortcut blinking so that it doesn't get rendered in
@@ -4551,4 +4552,15 @@ void AutomationView::blinkInterpolationShortcut() {
 	PadLEDs::flashMainPad(kInterpolationShortcutX, kInterpolationShortcutY);
 	uiTimerManager.setTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK, 3000);
 	interpolationShortcutBlinking = true;
+}
+
+void AutomationView::resetPadSelectionShortcutBlinking() {
+	uiTimerManager.unsetTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK);
+	padSelectionShortcutBlinking = false;
+}
+
+void AutomationView::blinkPadSelectionShortcut() {
+	PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
+	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
+	padSelectionShortcutBlinking = true;
 }

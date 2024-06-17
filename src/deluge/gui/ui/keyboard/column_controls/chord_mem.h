@@ -18,11 +18,11 @@
 #pragma once
 
 #include "gui/ui/keyboard/column_controls/control_column.h"
+#include "storage/storage_manager.h"
 
 namespace deluge::gui::ui::keyboard::controls {
 
 constexpr int32_t kMaxNotesChordMem = 10;
-
 class ChordMemColumn : public ControlColumn {
 public:
 	ChordMemColumn() = default;
@@ -33,6 +33,9 @@ public:
 	                         KeyboardLayout* layout) override;
 	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
 	               KeyboardLayout* layout) override;
+
+	void writeToFile(Serializer& writer);
+	void readFromFile(Deserializer& reader);
 
 private:
 	uint8_t chordMemNoteCount[8] = {0};

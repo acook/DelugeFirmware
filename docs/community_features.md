@@ -668,7 +668,8 @@ to each individual note onset. ([#1978])
       - Negative value = bottom 4 pads lit up according to position in middle to minimum value range
       - Note: per the functionality added in [#887] mentioned above, you can set a param to the middle value by pressing the two pads in a column or you can use the fine tuning method with the gold encoders in or out of pad selection mode by selecting a pad and turning gold encoder.
       - To make it easier to set the middle value, functionality has been added to blink the LED indicators when you reach the middle value and it also makes it more difficult to turn the knob past the middle value as it currently did outside automation view editor.
-    - ([#1898]) Updated `AUTOMATION VIEW` shortcut to enter/exit `PAD SELECTION MODE` to `SHIFT` + `WAVEFORM` (the very top left pad in first column of grid).
+    - ([#1898] [#2136]) Change pad selection mode shortcut.
+      - Updated `AUTOMATION VIEW` to move `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.    
 
 #### 4.3.6 - Set Probability By Row
 
@@ -884,7 +885,8 @@ to each individual note onset. ([#1978])
       Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position.
     - **`Chord Memory (CMEM - Cyan):`** Hold a chord down and press a pad to remember the chord. Press
       that pad again to play it. You can play over the top of your saved chords. To clear a chord,
-      press shift and the pad you want to clear.
+      press shift and the pad you want to clear. Chord memory is shared across all song clips and it
+      is saved in the song file.
     - **`Scale Mode (SMOD - Yellow):`** Press and hold a pad to temporarily change the scale of the
       keyboard to the selected scale mode. Tap a scale mode to make it the new default. The scale
       pads will default to the first 7 scale modes, but you can change any pad to any scale by
@@ -1292,6 +1294,8 @@ different firmware
 [#1898]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1898
 
 [#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
+
+[#2136]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2136
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
